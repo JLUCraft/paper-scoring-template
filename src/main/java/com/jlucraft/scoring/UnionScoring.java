@@ -8,8 +8,10 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
@@ -18,6 +20,7 @@ public final class UnionScoring extends JavaPlugin {
     private final Gson json = new Gson();
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).followRedirects(HttpClient.Redirect.NEVER).build();
     private final ThreadPoolExecutor queue = new ThreadPoolExecutor(1, 1, 0, TimeUnit.SECONDS, new ArrayBlockingQueue<>(256));
+    private final Set<CompletableFuture<Void>> pending = ConcurrentHashMap.newKeySet();
     private URI endpoint;
     private String token;
     private String league;
@@ -42,6 +45,7 @@ public final class UnionScoring extends JavaPlugin {
         final CompletableFuture<Void> result = new CompletableFuture<>();
         final String body = json.toJson(payload);
         if (!isEnabled()) return CompletableFuture.failedFuture(new IllegalStateException("Scoring disabled"));
+        pending.add(result);
         try {
             queue.execute(() -> {
                 try {
@@ -53,9 +57,22 @@ public final class UnionScoring extends JavaPlugin {
                     result.complete(null);
                 } catch (InterruptedException error) { Thread.currentThread().interrupt(); result.completeExceptionally(error); }
                 catch (Exception error) { result.completeExceptionally(error); }
+                finally { pending.remove(result); }
             });
-        } catch (java.util.concurrent.RejectedExecutionException error) { result.completeExceptionally(error); }
+        } catch (java.util.concurrent.RejectedExecutionException error) {
+            pending.remove(result);
+            result.completeExceptionally(error);
+        }
         return result;
     }
-    @Override public void onDisable() { queue.shutdown(); }
+    @Override public void onDisable() {
+        queue.shutdown();
+        try { queue.awaitTermination(5, TimeUnit.SECONDS); }
+        catch (InterruptedException error) { Thread.currentThread().interrupt(); }
+        queue.shutdownNow();
+        for (CompletableFuture<Void> future : pending) {
+            future.completeExceptionally(new IllegalStateException("Scoring disabled: pending score dropped on plugin shutdown"));
+        }
+        pending.clear();
+    }
 }
