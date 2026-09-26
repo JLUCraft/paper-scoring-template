@@ -36,6 +36,19 @@ public final class UnionScoring extends JavaPlugin {
         endpoint = URI.create(getConfig().getString("endpoint", "http://127.0.0.1:8091"));
         token = System.getenv("UNION_SCORING_TOKEN");
         league = getConfig().getString("league");
+        var assigned = getDataFolder().toPath().toAbsolutePath().getParent().getParent().resolve("union-game-session.json");
+        if (java.nio.file.Files.exists(assigned)) {
+            try {
+                var session = json.fromJson(java.nio.file.Files.readString(assigned), com.google.gson.JsonObject.class);
+                if (session.get("protocol_version").getAsInt() != 1) throw new IllegalArgumentException("Unsupported game adapter version");
+                league = session.get("league").getAsString();
+            }
+            catch (java.io.IOException | RuntimeException error) {
+                getLogger().severe("Cannot read game session binding");
+                getServer().getPluginManager().disablePlugin(this);
+                return;
+            }
+        }
         if (!"http".equals(endpoint.getScheme()) || !"127.0.0.1".equals(endpoint.getHost()) || endpoint.getUserInfo()!=null || token==null || token.length()<32 || league==null) {
             getLogger().severe("Configure loopback scoring endpoint, league and UNION_SCORING_TOKEN");
             getServer().getPluginManager().disablePlugin(this);
