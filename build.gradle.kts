@@ -5,5 +5,5 @@ repositories {
     mavenCentral()
     maven("https://repo.papermc.io/repository/maven-public/")
 }
-dependencies { compileOnly("io.papermc.paper:paper-api:26.3.build.32-alpha") }
+dependencies { compileOnly("io.papermc.paper:paper-api:26.3.build.209-stable") }
 java { toolchain.languageVersion.set(JavaLanguageVersion.of(25)) }
