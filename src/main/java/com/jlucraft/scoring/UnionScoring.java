@@ -30,9 +30,20 @@ public final class UnionScoring extends JavaPlugin {
     private URI endpoint;
     private String token;
     private String league;
+    private ActivityProbe activity;
+    private boolean scoringEnabled;
 
     @Override public void onEnable() {
         saveDefaultConfig();
+        if (getConfig().getBoolean("activity.enabled", false)) {
+            try { activity = new ActivityProbe(this); }
+            catch (java.io.IOException | RuntimeException error) {
+                getLogger().severe("Cannot initialize activity probe; check source, endpoint, token and data directory");
+                getServer().getPluginManager().disablePlugin(this);
+                return;
+            }
+        }
+        if (!getConfig().getBoolean("scoring.enabled", true)) return;
         endpoint = URI.create(getConfig().getString("endpoint", "http://127.0.0.1:8091"));
         token = System.getenv("UNION_SCORING_TOKEN");
         league = getConfig().getString("league");
@@ -49,6 +60,7 @@ public final class UnionScoring extends JavaPlugin {
                 return;
             }
         }
+        scoringEnabled = true;
         if (!"http".equals(endpoint.getScheme()) || !"127.0.0.1".equals(endpoint.getHost()) || endpoint.getUserInfo()!=null || token==null || token.length()<32 || league==null) {
             getLogger().severe("Configure loopback scoring endpoint, league and UNION_SCORING_TOKEN");
             getServer().getPluginManager().disablePlugin(this);
@@ -63,7 +75,7 @@ public final class UnionScoring extends JavaPlugin {
     private CompletableFuture<Void> submit(String path, Object payload) {
         final CompletableFuture<Void> result = new CompletableFuture<>();
         final String body = json.toJson(payload);
-        if (!isEnabled()) return CompletableFuture.failedFuture(new IllegalStateException("Scoring disabled"));
+        if (!isEnabled() || !scoringEnabled) return CompletableFuture.failedFuture(new IllegalStateException("Scoring disabled"));
         pending.add(result);
         try {
             queue.execute(() -> {
@@ -85,6 +97,7 @@ public final class UnionScoring extends JavaPlugin {
         return result;
     }
     @Override public void onDisable() {
+        if (activity != null) activity.close();
         queue.shutdown();
         try { queue.awaitTermination(5, TimeUnit.SECONDS); }
         catch (InterruptedException error) { Thread.currentThread().interrupt(); }

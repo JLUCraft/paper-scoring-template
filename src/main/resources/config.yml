@@ -1,3 +1,12 @@
 endpoint: 'http://127.0.0.1:8091'
 league: 'configure-league-id'
 # Set UNION_SCORING_TOKEN in the Paper process environment; never distribute it to clients.
+
+scoring:
+  enabled: true
+activity:
+  enabled: false
+  source: 'configure-source-id'
+  endpoint: 'http://127.0.0.1:8093'
+  token_env: 'UNION_ACTIVITY_TOKEN'
+# A survival world enables activity and disables scoring; its source is registered on-chain.
