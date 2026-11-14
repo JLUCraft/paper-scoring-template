@@ -1,6 +1,6 @@
 # Paper Scoring Template
 
-The JLUCraft Paper plugin for reporting game scores and accumulated activity to the federation host.
+The JLUCraft Paper plugin for reporting game scores and accumulated activity to the central game host.
 
 ## Setup and structure
 

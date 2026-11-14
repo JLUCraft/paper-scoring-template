@@ -17,7 +17,7 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * Gameplay plugins call this API. It does not authenticate, route, or replace players.
- * Player score keys MUST be stable federation member IDs resolved from the player's
+ * Player score keys MUST be stable member account IDs resolved from the player's
  * authenticated forwarded Minecraft UUID and the verified identity projection.
  * Minecraft names are display labels, never authorization or score attribution keys.
  * This adapter cannot detect a game mode that supplies another member's key.
